@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="https://github.com/ald1a1mem.png">
+<title>60秒回答30個問題</title>
+
+<style>
+body { background: #111; color: white; text-align: center; font-family: sans-serif; margin: 0; overflow-x: hidden; }
+:root { --main-color: #5698c3; }
+#title { font-size: 26px; margin: 20px auto; font-weight: bold; line-height: 1.5; max-width: 95%; }
+#top-controls { margin-bottom: 15px; }
+#subtitle-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+#subtitle-controls button { background: var(--main-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+#subtitle-controls button:hover { filter: brightness(1.2); }
+#video-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; }
+#video-container { position: relative; width: min(95vw, 640px); aspect-ratio: 16 / 9; background: black; border-radius: 10px; overflow: hidden; }
+#player, #player iframe { width: 100%; height: 100%; display: block; }
+#subtitle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 18px; font-family: "Arial Rounded MT Bold", "微軟正黑體", sans-serif; color: white; background: rgba(0,0,0,0.7); padding: 8px 14px; border-radius: 8px; white-space: pre-line; max-width: 90%; width: fit-content; pointer-events: none; z-index: 10; line-height: 1.5; display: none; }
+#exitFsBtn { display: none; position: absolute; right: 20px; bottom: 20px; background: var(--main-color); color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; z-index: 20; }
+#bottom-bar { margin-top: 15px; margin-bottom: 25px; }
+#fullscreenBtn { background: var(--main-color); color: white; border: none; padding: 10px 30px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+#fullscreenBtn:hover { filter: brightness(1.2); }
+#video-container:fullscreen { width: 100vw; height: 100vh; border-radius: 0; }
+#video-container:fullscreen #player, #video-container:fullscreen iframe { width: 100vw; height: 100vh; }
+#video-container:fullscreen #subtitle { font-size: 4vh; bottom: 8vh; }
+#video-container:fullscreen #exitFsBtn { display: block; }
+
+@media (max-width: 768px) {
+  #title { font-size: 18px; padding: 0 15px; margin-top: 18px; margin-bottom: 18px; }
+  #video-container { width: 100vw; border-radius: 0; }
+  #subtitle { font-size: 15px; bottom: 14px; max-width: 92%; padding: 6px 10px; }
+  #subtitle-controls button, #fullscreenBtn { font-size: 14px; padding: 8px 14px; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="title">
+60秒回答30個問題
+</div>
+
+<div id="top-controls">
+  <div id="subtitle-controls">
+    <button onclick="changeFontSize(2)">放大</button>
+    <button onclick="changeFontSize(-2)">縮小</button>
+    <button onclick="resetFontSize()">復原</button>
+  </div>
+</div>
+
+<div id="video-wrapper">
+  <div id="video-container">
+    <div id="player"></div>
+    <div id="subtitle">字幕載入中...</div>
+    <button id="exitFsBtn" onclick="exitFullScreen()">退出全螢幕</button>
+  </div>
+  <div id="bottom-bar">
+    <button id="fullscreenBtn" onclick="enterFullScreen()">全螢幕</button>
+  </div>
+</div>
+
+<script>
+// 1. 定義變數
+const videoId = "mRUWjSzxklQ";
+let player = null;
+
+// 2. 字幕清單 
+const subtitles = [
+  { time: 0, text: "LEO | 酷\nJUNSEO | 犬派" },
+  { time: 1, text: "ARNO | FREAK ALARM\nSANGWON | FREAK ALARM\nXINLONG | 成員！" },
+  { time: 2, text: "ANXIN | 沒有！\nSANGHYEON | 大家都很好" },
+  { time: 3, text: "LEO | 《Harper's BAZAAR》的觀眾們" },
+  { time: 4, text: "LEO | ONE DESTINY！" },
+  { time: 5, text: "ALD1 | DRIVE TO THE TOP！" },
+  { time: 6, text: "ALD1 | 大家好" },
+  { time: 6, text: "ALD1 | 我們是 ALPHA DRIVE ONE" },
+  { time: 8, text: "LEO | 今天我們要來挑戰【60秒回答30個問題】" },
+  { time: 12, text: "1. 如果用一個詞來形容自己？" },
+  { time: 14, text: "LEO | 帥氣" },
+  { time: 15, text: "2. 今天的心情是什麼顏色？" },
+  { time: 17, text: "JUNSEO | 今天 完全是 藍色的" },
+  { time: 19, text: "3. 最近常聽的音樂是？" },
+  { time: 22, endTime: 23,text: "ARNO | FREAK ALARM" },
+  { time: 24, text: "4. 最近關注的事情是？" },
+  { time: 26, text: "SANGWON | FREAK ALARM" },
+  { time: 28, text: "5. 如果去無人島只能帶一樣東西，會帶什麼？" },
+  { time: 31, text: "XINLONG | 成員！" },
+  { time: 32, text: "JUNSEO | 要把成員帶過去喔？（笑）" },
+  { time: 33, text: "6. 如果能使用一種超能力，想用什麼？" },
+  { time: 36, text: "ANXIN | 瞬間移動" },
+  { time: 37, text: "JUNSEO | 讚喔讚喔，這個感覺辦得到" },
+  { time: 38, text: "7. 覺得自己前世是什麼？" },
+  { time: 40, text: "SANGHYEON | 小狗" },
+  { time: 42, text: "8. 休息日喜歡待在家還是出門？" },
+  { time: 43, text: "LEO | 待在家" },
+  { time: 45, text: "9. 犬派還是貓派？" },
+  { time: 47, text: "JUNSEO | 犬派！" },
+  { time: 48, text: "10. 咖啡派還是茶派？" },
+  { time: 49, text: "ARNO | 茶派！" },
+  { time: 51, text: "11. 如果可以跟其中一位成員交換靈魂一天，想跟誰換？" },
+  { time: 56, endTime: 57,text: "SANGWON | JUNSEO" },
+  { time: 58, text: "12. 自己在團體裡擔當的角色是？" },
+  { time: 62, text: "XINLONG | ANXIN！" },
+  { time: 63, text: "SANGHYEON | 喔，不是\n低音" },
+  { time: 64, text: "XINLONG | 啊~\n低音！" },
+  { time: 64, text: "13. 覺得忙內最可愛的地方是？" },
+  { time: 68, text: "ANXIN | 沒有！" },
+  { time: 69, text: "SANGHYEON | 喔！沒有？" },
+  { time: 71, text: "14. 待在休息室裡只要有什麼東西，心情就會變好？" },
+  { time: 73, text: "SANGHYEON | 大家都很好" },
+  { time: 74, endTime: 75, text: "SANGHYEON | 點心！" },
+  { time: 76, text: "LEO | 哇，這時間過得太快了吧！" },
+  { time: 77, text: "JUNSEO | 答對了幾個啊？" },
+  { time: 78, text: "JUNSEO | 啊~~14個" },
+];
+
+// 3. 載入 YouTube API
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player("player", {
+    height: "360",
+    width: "640",
+    videoId: videoId,
+    playerVars: {
+      'autoplay': 0,
+      'controls': 1,
+      'rel': 0,
+      'modestbranding': 1,
+      'origin': window.location.origin
+    },
+    events: {
+      'onReady': onPlayerReady,
+      'onError': onPlayerError
+    }
+  });
+}
+
+function onPlayerReady(event) {
+  setInterval(updateSubtitle, 200);
+}
+
+function onPlayerError(e) {
+  console.error("播放器出錯，代碼：" + e.data);
+}
+
+// 4. 字幕更新邏輯
+function updateSubtitle(){
+  if(!player || !player.getCurrentTime || typeof player.getCurrentTime !== 'function') return;
+
+  const t = player.getCurrentTime();
+  let text = "";
+
+  for(let i = subtitles.length - 1; i >= 0; i--){
+    const sub = subtitles[i];
+    if(t >= sub.time){
+      if(sub.endTime && t >= sub.endTime) {
+        text = ""; 
+      } else {
+        text = sub.text;
+      }
+      break; 
+    }
+  }
+
+  const subEl = document.getElementById("subtitle");
+  if(text === "") {
+    subEl.style.display = "none";
+  } else {
+    subEl.style.display = "block";
+    subEl.innerText = text;
+  }
+}
+
+// 5. 控制功能
+let currentFontSize = 18;
+function changeFontSize(delta) {
+  currentFontSize += delta;
+  document.getElementById("subtitle").style.fontSize = currentFontSize + "px";
+}
+function resetFontSize() {
+  currentFontSize = 18;
+  document.getElementById("subtitle").style.fontSize = "18px";
+}
+
+function enterFullScreen() {
+  const elem = document.getElementById("video-container");
+  if (elem.requestFullscreen) { elem.requestFullscreen(); }
+  else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+  else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+}
+
+function exitFullScreen() {
+  if (document.exitFullscreen) { document.exitFullscreen(); }
+  else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+  else if (document.msExitFullscreen) { document.msExitFullscreen(); }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const subEl = document.getElementById("subtitle");
+  if (document.fullscreenElement) {
+    subEl.style.fontSize = (currentFontSize * 1.5) + "px";
+  } else {
+    subEl.style.fontSize = currentFontSize + "px";
+  }
+});
+</script>
+
+</body>
+</html>
